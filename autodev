@@ -1,0 +1,57 @@
+#!/bin/bash
+
+echo "Enter the name you want to call your .conf file:"
+read confname
+echo "Enter your ServerName:"
+read servername
+echo "Enter your ServerAlias:"
+read serveralias
+echo "Enter your DocumentRoot:"
+read documentroot
+
+site_enabled="/etc/apache2/sites-enabled/$confname.conf"
+site_available="/etc/apache2/sites-available/$confname.conf"
+# Create file
+touch $site_available
+
+# Assign correct permissions
+chmod 777 $site_available
+
+# Copy content to new .conf file
+cat > $site_available << EOF
+<VirtualHost *:80>
+	ServerName $servername
+	ServerAlias $serveralias
+	ServerAdmin webmaster@localhost
+	DocumentRoot $documentroot
+</VirtualHost>
+EOF
+
+# Create symlink between both files
+ln -s $site_available $site_enabled
+
+# Enable new virtual host file
+full_conf="$confname.conf"
+a2ensite $full_conf
+
+# Restart apache
+systemctl restart apache2
+
+IP="127.0.0.1"
+HOSTS_LINE="$IP\t$servername"
+
+if [ -n "$(grep $servername /etc/hosts)" ]
+	then
+		echo "$servername already exists: $(grep $servername /etc/hosts)"
+	else
+		echo "Adding $servername to your hosts file"
+		# Add to end of hosts file
+		sudo -- sh -c -e "echo '$HOSTS_LINE' >> /etc/hosts";
+
+    if [ -n "$(grep $servername /etc/hosts)" ]
+      then
+        echo "$servername was added succesfully \n $(grep $servername /etc/hosts)";
+      else
+        echo "Failed to Add $servername, Try again!";
+    fi
+fi
